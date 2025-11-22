@@ -1,11 +1,117 @@
 @import 'tailwindcss';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
-
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+@layer base {
+    body {
+        font-family: 'Inter', sans-serif;
+    }
 }
+
+@layer components {
+    .btn-primary {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        background-color: #2563eb;
+        color: white;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-primary:hover {
+        background-color: #1d4ed8;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-secondary {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        background-color: #e5e7eb;
+        color: #374151;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease-in-out;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #d1d5db;
+    }
+    
+    .btn-danger {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        background-color: #dc2626;
+        color: white;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease-in-out;
+    }
+    
+    .btn-danger:hover {
+        background-color: #b91c1c;
+    }
+    
+    .card {
+        background-color: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease-in-out;
+    }
+    
+    .card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .input-field {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        background-color: white;
+        color: #111827;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    
+    .input-field:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .input-field option {
+        color: #111827;
+        background-color: white;
+        padding: 0.75rem;
+        font-weight: 500;
+        font-size: 1rem;
+    }
+    
+    .input-field option[value=""] {
+        color: #6b7280;
+    }
+    
+    .input-field::placeholder {
+        color: #9ca3af;
+    }
+    
+    /* Style untuk select dropdown */
+    select.input-field {
+        appearance: auto;
+        cursor: pointer;
+        background-image: none;
+        color: #111827 !important;
+    }
+    
+    select.input-field:not([value=""]) {
+        color: #111827 !important;
+    }
+}
+
+
