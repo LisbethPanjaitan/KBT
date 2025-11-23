@@ -12,23 +12,26 @@ class DemoDataSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create Demo Admin User
-        \App\Models\User::create([
-            'name' => 'Admin KBT',
-            'email' => 'admin@kbt.com',
-            'password' => bcrypt('password'),
-            'role' => 'admin',
-            'phone' => '081234567890',
-        ]);
+        // Skip user creation if already exists
+        if (!\App\Models\User::where('email', 'admin@kbt.com')->exists()) {
+            \App\Models\User::create([
+                'name' => 'Admin KBT',
+                'email' => 'admin@kbt.com',
+                'password' => bcrypt('password'),
+                'role' => 'admin',
+                'phone' => '081234567890',
+            ]);
+        }
 
-        // Create Demo Regular User
-        \App\Models\User::create([
-            'name' => 'Budi Santoso',
-            'email' => 'budi@example.com',
-            'password' => bcrypt('password'),
-            'role' => 'user',
-            'phone' => '082345678901',
-        ]);
+        if (!\App\Models\User::where('email', 'budi@example.com')->exists()) {
+            \App\Models\User::create([
+                'name' => 'Budi Santoso',
+                'email' => 'budi@example.com',
+                'password' => bcrypt('password'),
+                'role' => 'user',
+                'phone' => '082345678901',
+            ]);
+        }
 
         // Create Buses
         $buses = [

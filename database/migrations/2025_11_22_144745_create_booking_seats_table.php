@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('booking_id')->constrained()->onDelete('cascade');
             $table->foreignId('seat_id')->constrained()->onDelete('cascade');
-            $table->foreignId('passenger_id')->nullable()->constrained()->onDelete('set null');
+            $table->unsignedBigInteger('passenger_id')->nullable();
             $table->decimal('seat_price', 10, 2);
             $table->timestamps();
             

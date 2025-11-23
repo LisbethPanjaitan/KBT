@@ -64,12 +64,141 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
+// Admin Login Routes (Public)
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/login', function () { return view('admin.auth.login'); })->name('login');
+    Route::post('/login', [AuthController::class, 'adminLogin'])->name('login.post');
+    Route::get('/logout', [AuthController::class, 'adminLogout'])->name('logout.get');
+});
+
 // Admin Routes (Protected)
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard
+    Route::get('/dashboard', function () { return view('admin.dashboard'); })->name('dashboard');
     
-    // Resource Routes
-    Route::resource('buses', BusController::class);
-    Route::resource('routes', AdminRouteController::class);
-    Route::resource('schedules', ScheduleController::class);
+    // Authentication & Users
+    Route::post('/logout', [AuthController::class, 'adminLogout'])->name('logout');
+    Route::get('/profile', function () { return view('admin.profile'); })->name('profile');
+    
+    // Admin Users Management
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/', function () { return view('admin.users.index'); })->name('index');
+        Route::get('/create', function () { return view('admin.users.create'); })->name('create');
+        Route::get('/{id}', function () { return view('admin.users.show'); })->name('show');
+        Route::get('/{id}/edit', function () { return view('admin.users.edit'); })->name('edit');
+    });
+    
+    // Loket & Manual Booking
+    Route::prefix('loket')->name('loket.')->group(function () {
+        Route::get('/create', function () { return view('admin.loket.create'); })->name('create');
+        Route::post('/store', [BookingController::class, 'manualStore'])->name('store');
+    });
+    
+    // Bookings Management
+    Route::prefix('bookings')->name('bookings.')->group(function () {
+        Route::get('/', function () { return view('admin.bookings.index'); })->name('index');
+        Route::get('/pending', function () { return view('admin.bookings.pending'); })->name('pending');
+        Route::get('/{id}', function () { return view('admin.bookings.show'); })->name('show');
+        Route::post('/{id}/confirm', [BookingController::class, 'confirmPayment'])->name('confirm');
+        Route::post('/{id}/cancel', [BookingController::class, 'cancel'])->name('cancel');
+        Route::post('/{id}/refund', [BookingController::class, 'refund'])->name('refund');
+        Route::post('/{id}/reschedule', [BookingController::class, 'reschedule'])->name('reschedule');
+    });
+    
+    // Routes Management
+    Route::prefix('routes')->name('routes.')->group(function () {
+        Route::get('/', [AdminRouteController::class, 'index'])->name('index');
+        Route::get('/create', [AdminRouteController::class, 'create'])->name('create');
+        Route::post('/', [AdminRouteController::class, 'store'])->name('store');
+        Route::get('/{id}', [AdminRouteController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [AdminRouteController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [AdminRouteController::class, 'update'])->name('update');
+        Route::delete('/{id}', [AdminRouteController::class, 'destroy'])->name('destroy');
+    });
+    
+    // Schedules Management
+    Route::prefix('schedules')->name('schedules.')->group(function () {
+        Route::get('/', [ScheduleController::class, 'index'])->name('index');
+        Route::get('/calendar', [ScheduleController::class, 'calendar'])->name('calendar');
+        Route::get('/today', function () { return view('admin.schedules.today'); })->name('today');
+        Route::get('/create', [ScheduleController::class, 'create'])->name('create');
+        Route::post('/', [ScheduleController::class, 'store'])->name('store');
+        Route::get('/{id}', [ScheduleController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [ScheduleController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [ScheduleController::class, 'update'])->name('update');
+        Route::delete('/{id}', [ScheduleController::class, 'destroy'])->name('destroy');
+    });
+    
+    // Vehicles Management
+    Route::prefix('vehicles')->name('vehicles.')->group(function () {
+        Route::get('/', [BusController::class, 'index'])->name('index');
+        Route::get('/seatmap', function () { return view('admin.vehicles.seatmap'); })->name('seatmap');
+        Route::get('/create', [BusController::class, 'create'])->name('create');
+        Route::post('/', [BusController::class, 'store'])->name('store');
+        Route::get('/{id}', [BusController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [BusController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [BusController::class, 'update'])->name('update');
+        Route::delete('/{id}', [BusController::class, 'destroy'])->name('destroy');
+    });
+    
+    // Pricing & Promo
+    Route::prefix('pricing')->name('pricing.')->group(function () {
+        Route::get('/', function () { return view('admin.pricing.index'); })->name('index');
+        Route::get('/dynamic', function () { return view('admin.pricing.dynamic'); })->name('dynamic');
+    });
+    
+    Route::prefix('promos')->name('promos.')->group(function () {
+        Route::get('/', function () { return view('admin.promos.index'); })->name('index');
+        Route::get('/create', function () { return view('admin.promos.create'); })->name('create');
+    });
+    
+    // Payments & Reconciliation
+    Route::prefix('payments')->name('payments.')->group(function () {
+        Route::get('/', function () { return view('admin.payments.index'); })->name('index');
+        Route::get('/reconciliation', function () { return view('admin.payments.reconciliation'); })->name('reconciliation');
+        Route::get('/refunds', function () { return view('admin.payments.refunds'); })->name('refunds');
+    });
+    
+    // Reports
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', function () { return view('admin.reports.index'); })->name('index');
+        Route::get('/today', function () { return view('admin.reports.today'); })->name('today');
+        Route::get('/export', [DashboardController::class, 'exportReport'])->name('export');
+    });
+    
+    // Manifest
+    Route::prefix('manifest')->name('manifest.')->group(function () {
+        Route::get('/', function () { return view('admin.manifest.index'); })->name('index');
+        Route::get('/today', function () { return view('admin.manifest.today'); })->name('today');
+        Route::get('/{id}', function () { return view('admin.manifest.show'); })->name('show');
+        Route::get('/{id}/print', function () { return view('admin.manifest.print'); })->name('print');
+    });
+    
+    // Notifications & Broadcast
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', function () { return view('admin.notifications.index'); })->name('index');
+        Route::post('/send', [DashboardController::class, 'sendBroadcast'])->name('send');
+    });
+    
+    // Audit Log
+    Route::prefix('audit')->name('audit.')->group(function () {
+        Route::get('/', function () { return view('admin.audit.index'); })->name('index');
+        Route::get('/export', [DashboardController::class, 'exportAudit'])->name('export');
+    });
+    
+    // Integrations
+    Route::prefix('integrations')->name('integrations.')->group(function () {
+        Route::get('/', function () { return view('admin.integrations.index'); })->name('index');
+        Route::post('/connect', [DashboardController::class, 'connectIntegration'])->name('connect');
+        Route::post('/disconnect', [DashboardController::class, 'disconnectIntegration'])->name('disconnect');
+    });
+    
+    // Settings
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/', function () { return view('admin.settings.index'); })->name('index');
+        Route::post('/update', [DashboardController::class, 'updateSettings'])->name('update');
+    });
+    
+    // Password Reset
+    Route::get('/password/request', function () { return view('admin.auth.forgot-password'); })->name('password.request');
 });

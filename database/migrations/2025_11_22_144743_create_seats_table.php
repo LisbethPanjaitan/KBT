@@ -20,7 +20,7 @@ return new class extends Migration
             $table->enum('status', ['available', 'booked', 'held', 'broken'])->default('available');
             $table->enum('seat_type', ['standard', 'premium', 'wheelchair', 'near_door'])->default('standard');
             $table->decimal('extra_price', 10, 2)->default(0); // harga tambahan untuk kursi premium
-            $table->foreignId('booking_id')->nullable()->constrained()->onDelete('set null');
+            $table->unsignedBigInteger('booking_id')->nullable();
             $table->timestamp('held_until')->nullable(); // untuk temporary hold saat checkout
             $table->timestamps();
             

@@ -91,6 +91,35 @@ class AuthController extends Controller
         return redirect()->route('home')->with('success', 'Anda berhasil logout.');
     }
     
+    public function adminLogin(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+        
+        if (Auth::attempt($credentials, $request->filled('remember'))) {
+            $request->session()->regenerate();
+            
+            // Redirect to admin dashboard
+            return redirect()->route('admin.dashboard');
+        }
+        
+        return back()->withErrors([
+            'email' => 'Email atau password salah.',
+        ])->withInput($request->only('email'));
+    }
+    
+    public function adminLogout(Request $request)
+    {
+        Auth::logout();
+        
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
+        return redirect()->route('admin.login')->with('success', 'Anda berhasil logout.');
+    }
+    
     public function showForgotPassword()
     {
         return view('auth.forgot-password');
