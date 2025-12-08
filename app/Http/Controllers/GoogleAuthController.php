@@ -25,6 +25,12 @@ class GoogleAuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
             
+            \Log::info('Google User Data:', [
+                'id' => $googleUser->getId(),
+                'email' => $googleUser->getEmail(),
+                'name' => $googleUser->getName()
+            ]);
+            
             // Find or create user
             $user = User::where('google_id', $googleUser->getId())
                        ->orWhere('email', $googleUser->getEmail())
@@ -59,6 +65,10 @@ class GoogleAuthController extends Controller
             return redirect()->route('home')->with('success', 'Login berhasil! Selamat datang, ' . $user->name);
 
         } catch (\Exception $e) {
+            \Log::error('Google Login Error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return redirect()->route('login')->with('error', 'Login dengan Google gagal: ' . $e->getMessage());
         }
     }
