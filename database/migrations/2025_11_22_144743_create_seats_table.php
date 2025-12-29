@@ -11,21 +11,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('seats', function (Blueprint $table) {
+        Schema::create('payments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('schedule_id')->constrained()->onDelete('cascade');
-            $table->string('seat_number'); // A1, A2, B1, B2, etc
-            $table->integer('row_number');
-            $table->integer('column_number');
-            $table->enum('status', ['available', 'booked', 'held', 'broken'])->default('available');
-            $table->enum('seat_type', ['standard', 'premium', 'wheelchair', 'near_door'])->default('standard');
-            $table->decimal('extra_price', 10, 2)->default(0); // harga tambahan untuk kursi premium
-            $table->unsignedBigInteger('booking_id')->nullable();
-            $table->timestamp('held_until')->nullable(); // untuk temporary hold saat checkout
+            $table->foreignId('booking_id')->constrained()->onDelete('cascade');
+            $table->string('payment_code')->unique();
+            $table->enum('payment_method', ['bank_transfer', 'gopay', 'ovo', 'dana', 'shopeepay', 'credit_card', 'va_bca', 'va_mandiri', 'va_bni', 'pay_at_counter']);
+            $table->decimal('amount', 10, 2);
+            $table->enum('status', ['pending', 'processing', 'paid', 'failed', 'expired', 'refunded'])->default('pending');
+            $table->string('payment_url')->nullable(); // untuk redirect ke payment gateway
+            $table->string('virtual_account_number')->nullable();
+            $table->string('transaction_id')->nullable(); // dari payment gateway
+            $table->timestamp('paid_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->text('payment_proof')->nullable(); // untuk upload bukti transfer
+            $table->foreignId('confirmed_by')->nullable()->constrained('users')->onDelete('set null'); // admin yang konfirmasi
             $table->timestamps();
             
-            $table->unique(['schedule_id', 'seat_number']);
-            $table->index(['schedule_id', 'status']);
+            $table->index(['booking_id', 'status']);
         });
     }
 
@@ -34,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('seats');
+        Schema::dropIfExists('payments');
     }
 };

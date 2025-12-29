@@ -13,6 +13,12 @@ use App\Http\Controllers\Admin\RouteController as AdminRouteController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\GoogleAuthController;
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
+
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -93,22 +99,48 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('/{id}/edit', function () { return view('admin.users.edit'); })->name('edit');
     });
     
-    // Loket & Manual Booking
+    // Loket & Manual Booking (PERBAIKAN LENGKAP)
     Route::prefix('loket')->name('loket.')->group(function () {
-        Route::get('/create', function () { return view('admin.loket.create'); })->name('create');
+        // Form Pemesanan Manual (Step 1) - Menggunakan data asli database
+        Route::get('/create', [BookingController::class, 'manualCreate'])->name('create');
+        
+        // API untuk mengambil data kursi secara dinamis untuk Alpine.js (Step 2)
+        Route::get('/schedules/{id}/seats', [BookingController::class, 'getSeats'])->name('seats');
+        
+        // Proses penyimpanan pemesanan manual (Step 4)
         Route::post('/store', [BookingController::class, 'manualStore'])->name('store');
     });
     
     // Bookings Management
-    Route::prefix('bookings')->name('bookings.')->group(function () {
-        Route::get('/', function () { return view('admin.bookings.index'); })->name('index');
-        Route::get('/pending', function () { return view('admin.bookings.pending'); })->name('pending');
-        Route::get('/{id}', function () { return view('admin.bookings.show'); })->name('show');
-        Route::post('/{id}/confirm', [BookingController::class, 'confirmPayment'])->name('confirm');
-        Route::post('/{id}/cancel', [BookingController::class, 'cancel'])->name('cancel');
-        Route::post('/{id}/refund', [BookingController::class, 'refund'])->name('refund');
-        Route::post('/{id}/reschedule', [BookingController::class, 'reschedule'])->name('reschedule');
-    });
+   // Bookings Management (FIXED)
+Route::prefix('bookings')->name('bookings.')->group(function () {
+
+    // ✅ INDEX — HARUS KE CONTROLLER
+    Route::get('/', [BookingController::class, 'index'])
+        ->name('index');
+
+    // Optional filter
+    Route::get('/pending', [BookingController::class, 'pending'])
+        ->name('pending');
+
+    // ✅ DETAIL BOOKING
+    Route::get('/{booking}', [BookingController::class, 'show'])
+        ->name('show');
+
+    // ACTIONS
+    Route::post('/{booking}/confirm', [BookingController::class, 'confirmPayment'])
+        ->name('confirm');
+
+    Route::post('/{booking}/cancel', [BookingController::class, 'cancel'])
+        ->name('cancel');
+
+    Route::post('/{booking}/refund', [BookingController::class, 'refund'])
+        ->name('refund');
+
+    Route::post('/{booking}/reschedule', [BookingController::class, 'reschedule'])
+        ->name('reschedule');
+});
+
     
     // Routes Management
     Route::prefix('routes')->name('routes.')->group(function () {
