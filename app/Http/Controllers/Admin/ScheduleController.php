@@ -6,24 +6,46 @@ use App\Http\Controllers\Controller;
 use App\Models\Schedule;
 use App\Models\Route;
 use App\Models\Bus;
+use App\Models\Seat;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class ScheduleController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Menampilkan daftar jadwal keberangkatan.
+     * Menggunakan withCount untuk menghitung kursi yang sudah dipesan secara real-time.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $schedules = Schedule::with(['route', 'bus'])
+        $query = Schedule::with(['route', 'bus'])
+            // FIX: Hitung kursi yang statusnya 'booked' secara real-time agar indikator kapasitas akurat
+            ->withCount(['seats as booked_seats_count' => function ($q) {
+                $q->where('status', 'booked');
+            }]);
+
+        // Filter jika ada pencarian berdasarkan rute
+        if ($request->filled('route_id')) {
+            $query->where('route_id', $request->route_id);
+        }
+
+        $schedules = $query->orderBy('departure_date', 'desc')
             ->orderBy('departure_time', 'asc')
             ->paginate(20);
         
-        return view('admin.schedules.index', compact('schedules'));
+        // Statistik untuk dashboard atas
+        $stats = [
+            'today' => Schedule::whereDate('departure_date', Carbon::today())->count(),
+            'active' => Schedule::where('status', 'scheduled')->count(),
+            'departed' => Schedule::where('status', 'departed')->count(),
+            'cancelled' => Schedule::where('status', 'cancelled')->count(),
+        ];
+
+        return view('admin.schedules.index', compact('schedules', 'stats'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Menampilkan form untuk membuat jadwal baru.
      */
     public function create()
     {
@@ -34,7 +56,7 @@ class ScheduleController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Menyimpan jadwal baru ke database dan men-generate kursi bus secara otomatis.
      */
     public function store(Request $request)
     {
@@ -48,35 +70,31 @@ class ScheduleController extends Controller
             'status' => 'required|in:scheduled,departed,arrived,cancelled',
         ]);
 
-        // Get route and bus
         $route = Route::findOrFail($validated['route_id']);
         $bus = Bus::findOrFail($validated['bus_id']);
-
-        // Map arrival_time to estimated_arrival_time for database
+        
+        // Sinkronisasi input form dengan nama kolom di database (estimated_arrival_time)
         $validated['estimated_arrival_time'] = $validated['arrival_time'];
         unset($validated['arrival_time']);
 
-        // Set price to route's base_price if not provided
+        // Jika harga tidak diisi, gunakan harga dasar dari rute
         if (empty($validated['price'])) {
             $validated['price'] = $route->base_price;
         }
 
-        // Set available_seats to match bus capacity
         $validated['available_seats'] = $bus->total_seats;
-        
-        // Create schedule
         $schedule = Schedule::create($validated);
 
-        // Auto-create seats based on bus configuration
+        // Auto-create seats berdasarkan konfigurasi bus (Layout Grid)
         $totalSeats = $bus->total_seats;
         $seatsPerRow = $bus->seats_per_row;
         
         for ($i = 1; $i <= $totalSeats; $i++) {
             $row = ceil($i / $seatsPerRow);
             $col = (($i - 1) % $seatsPerRow) + 1;
-            $seatNumber = chr(64 + $row) . $col; // A1, A2, B1, B2, etc
+            $seatNumber = chr(64 + $row) . $col; // Contoh: A1, A2, B1, dst.
 
-            \App\Models\Seat::create([
+            Seat::create([
                 'schedule_id' => $schedule->id,
                 'seat_number' => $seatNumber,
                 'row_number' => $row,
@@ -88,21 +106,20 @@ class ScheduleController extends Controller
         }
 
         return redirect()->route('admin.schedules.index')
-            ->with('success', 'Jadwal berhasil ditambahkan dan siap dibooking oleh user!');
+            ->with('success', 'Jadwal berhasil ditambahkan!');
     }
 
     /**
-     * Display the specified resource.
+     * Menampilkan rincian jadwal tertentu.
      */
     public function show(string $id)
     {
-        $schedule = Schedule::with(['route', 'bus', 'bookings'])->findOrFail($id);
-        
+        $schedule = Schedule::with(['route', 'bus', 'bookings.passengers'])->findOrFail($id);
         return view('admin.schedules.show', compact('schedule'));
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Menampilkan form edit jadwal.
      */
     public function edit(string $id)
     {
@@ -114,12 +131,11 @@ class ScheduleController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Memperbarui data jadwal di database.
      */
     public function update(Request $request, string $id)
     {
         $schedule = Schedule::findOrFail($id);
-        
         $validated = $request->validate([
             'route_id' => 'required|exists:routes,id',
             'bus_id' => 'required|exists:buses,id',
@@ -130,37 +146,36 @@ class ScheduleController extends Controller
             'status' => 'required|in:scheduled,departed,arrived,cancelled',
         ]);
 
-        // Map arrival_time to estimated_arrival_time for database
         $validated['estimated_arrival_time'] = $validated['arrival_time'];
         unset($validated['arrival_time']);
 
         $schedule->update($validated);
 
         return redirect()->route('admin.schedules.index')
-            ->with('success', 'Jadwal berhasil diupdate');
+            ->with('success', 'Jadwal berhasil diperbarui');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Menghapus jadwal dari database.
      */
     public function destroy(string $id)
     {
         $schedule = Schedule::findOrFail($id);
         $schedule->delete();
-
+        
         return redirect()->route('admin.schedules.index')
             ->with('success', 'Jadwal berhasil dihapus');
     }
 
     /**
-     * Display calendar view
+     * Menampilkan tampilan kalender jadwal.
      */
     public function calendar()
     {
         $schedules = Schedule::with(['route', 'bus'])
             ->whereMonth('departure_date', now()->month)
             ->get();
-        
+            
         return view('admin.schedules.calendar', compact('schedules'));
     }
 }

@@ -49,11 +49,14 @@ class Booking extends Model
     }
 
     public function seats()
-    {
-        return $this->belongsToMany(Seat::class, 'booking_seats')
-                    ->withPivot('passenger_id', 'seat_price')
-                    ->withTimestamps();
-    }
+{
+    return $this->belongsToMany(
+        \App\Models\Seat::class,
+        'booking_seats'
+    )->withPivot(['passenger_id', 'seat_price'])
+     ->withTimestamps();
+}
+
 
     protected static function boot()
     {

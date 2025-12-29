@@ -10,12 +10,16 @@ use App\Models\Passenger;
 use App\Models\Route as BusRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class BookingController extends Controller
 {
     /**
-     * Helper statistik pemesanan
+     * ==========================================
+     * BAGIAN ADMIN & STATISTIK
+     * ==========================================
      */
+
     private function getStats()
     {
         return [
@@ -59,6 +63,12 @@ class BookingController extends Controller
         return view('admin.bookings.index', compact('bookings', 'stats'));
     }
 
+    /**
+     * ==========================================
+     * BAGIAN PEMESANAN LOKET (ADMIN)
+     * ==========================================
+     */
+
     public function manualCreate(Request $request)
     {
         $origins = BusRoute::distinct()->pluck('origin_city');
@@ -77,15 +87,6 @@ class BookingController extends Controller
         return view('admin.loket.create', compact('origins', 'destinations', 'schedules'));
     }
 
-    public function getSeats($scheduleId)
-    {
-        return response()->json(Seat::where('schedule_id', $scheduleId)->orderBy('seat_number')->get());
-    }
-
-    /**
-     * SIMPAN PEMESANAN MANUAL
-     * FIX: Integrasi QRIS & Mapping agar tidak error CHECK constraint
-     */
     public function manualStore(Request $request)
     {
         $request->validate([
@@ -95,25 +96,19 @@ class BookingController extends Controller
         ]);
 
         DB::beginTransaction();
-
         try {
             $schedule = Schedule::findOrFail($request->schedule_id);
             $totalSeatsCount = count($request->passengers);
             $subtotal = $schedule->price * $totalSeatsCount;
 
-            /**
-             * FIX UTAMA: Mapping untuk tabel BOOKINGS
-             * Karena 'shopeepay' ditolak oleh tabel bookings, gunakan 'bank_transfer' sebagai kategori umum
-             * untuk metode non-tunai.
-             */
+            // Mapping metode pembayaran agar sesuai Enum di database
             $methodMapForBooking = [
                 'cash'     => 'pay_at_counter',
                 'transfer' => 'bank_transfer',
-                'qris'     => 'bank_transfer' // Gunakan 'bank_transfer' agar lolos CHECK constraint bookings
+                'qris'     => 'bank_transfer'
             ];
             $finalBookingMethod = $methodMapForBooking[$request->payment_method] ?? 'pay_at_counter';
 
-            // 1. Simpan ke Tabel Bookings
             $booking = Booking::create([
                 'user_id'        => auth()->id(),
                 'schedule_id'    => $schedule->id,
@@ -124,10 +119,8 @@ class BookingController extends Controller
                 'subtotal'       => $subtotal,      
                 'total_amount'   => $subtotal, 
                 'qr_code'        => (string) Str::uuid(),
-                'source'         => 'loket',
             ]);
 
-            // 2. Simpan Penumpang & Hubungkan Kursi
             foreach ($request->passengers as $p) {
                 $passenger = Passenger::create([
                     'booking_id'   => $booking->id,
@@ -144,7 +137,9 @@ class BookingController extends Controller
                 ]);
             }
 
-            // 3. Simpan ke Tabel Payments (Gunakan 'shopeepay' di sini karena diizinkan)
+            // Update Kapasitas Riil agar sinkron dengan Admin
+            $schedule->decrement('available_seats', $totalSeatsCount);
+
             DB::table('payments')->insert([
                 'booking_id'     => $booking->id,
                 'payment_code'   => 'PAY-' . strtoupper(Str::random(10)),
@@ -156,19 +151,141 @@ class BookingController extends Controller
             ]);
 
             DB::commit();
-
-            return response()->json([
-                'success'  => true,
-                'message'  => 'Pemesanan Berhasil disimpan!',
-                'redirect' => route('admin.bookings.index')
-            ]);
+            return response()->json(['success' => true, 'message' => 'Berhasil!', 'redirect' => route('admin.bookings.index')]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Gagal: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * ==========================================
+     * BAGIAN PEMESANAN ONLINE (USER)
+     * ==========================================
+     */
+
+    public function selectSeats($scheduleId)
+    {
+        $schedule = Schedule::with(['bus', 'route', 'seats'])->findOrFail($scheduleId);
+        if (!$schedule->isBookable()) return redirect()->route('search')->with('error', 'Jadwal tidak tersedia.');
+        return view('booking.seats', compact('schedule'));
+    }
+
+    public function checkout(Request $request)
+    {
+        $request->validate([
+            'schedule_id' => 'required|exists:schedules,id',
+            'seat_ids' => 'required|array|min:1',
+        ]);
+        
+        $schedule = Schedule::with(['bus', 'route'])->findOrFail($request->schedule_id);
+        $seats = Seat::whereIn('id', $request->seat_ids)->get();
+        
+        foreach ($seats as $seat) {
+            if ($seat->status !== 'available') return redirect()->back()->with('error', "Kursi {$seat->seat_number} sudah dipesan.");
+        }
+        
+        $addons = \App\Models\Addon::where('status', 'active')->get();
+        return view('booking.checkout', compact('schedule', 'seats', 'addons'));
+    }
+
+    /**
+     * SIMPAN PESANAN USER
+     * Menangani sinkronisasi database, kapasitas, dan Admin view.
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'schedule_id'    => 'required|exists:schedules,id',
+            'seat_ids'       => 'required|array',
+            'passengers'     => 'required|array',
+            'payment_method' => 'required'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $schedule = Schedule::findOrFail($request->schedule_id);
+            $totalSeatsCount = count($request->seat_ids);
+            $subtotal = $schedule->price * $totalSeatsCount;
+
+            // Mapping Payment Method agar lolos Check Constraint
+            $methodMap = ['cash' => 'pay_at_counter', 'transfer' => 'bank_transfer', 'qris' => 'bank_transfer'];
+            $finalMethod = $methodMap[$request->payment_method] ?? 'bank_transfer';
+
+            // 1. Buat Booking (Hapus 'source' karena tidak ada di fillable model)
+            $booking = Booking::create([
+                'user_id'        => auth()->id(),
+                'schedule_id'    => $schedule->id,
+                'total_seats'    => $totalSeatsCount,
+                'subtotal'       => $subtotal,
+                'total_amount'   => $subtotal,
+                'payment_method' => $finalMethod,
+                'status'         => 'pending', 
+                'qr_code'        => (string) Str::uuid(),
+            ]);
+
+            // 2. Simpan Penumpang & Seat
+            foreach ($request->seat_ids as $index => $seatId) {
+                $pData = $request->passengers[$index];
+                $passenger = Passenger::create([
+                    'booking_id'   => $booking->id,
+                    'full_name'    => $pData['name'],
+                    'phone_number' => $pData['phone'],
+                    'passenger_type'=> 'adult'
+                ]);
+
+                // Update status kursi di database
+                Seat::where('id', $seatId)->update(['status' => 'booked']);
+
+                // Hubungkan ke tabel pivot booking_seats
+                $booking->seats()->attach($seatId, [
+                    'passenger_id' => $passenger->id, 
+                    'seat_price'   => $schedule->price
+                ]);
+            }
+
+            // 3. Update Kapasitas Riil di Admin (Medan-Berastagi Fix)
+            $schedule->decrement('available_seats', $totalSeatsCount);
+
+            // 4. Catat Pembayaran di Tabel Payments
+            DB::table('payments')->insert([
+                'booking_id'     => $booking->id,
+                'payment_code'   => 'PAY-' . strtoupper(Str::random(10)),
+                'payment_method' => ($request->payment_method == 'qris') ? 'shopeepay' : $finalMethod,
+                'amount'         => $subtotal,
+                'status'         => 'pending',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+
+            DB::commit();
+            return redirect()->route('booking.confirmation', $booking->id);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal memproses pesanan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * HALAMAN KONFIRMASI PEMESANAN (USER)
+     * Memastikan semua data relasi dimuat untuk menghindari error Baris 272.
+     */
+    public function confirmation($bookingId)
+    {
+        $booking = Booking::with([
+            'schedule.bus', 
+            'schedule.route', 
+            'seats', 
+            'passengers'
+        ])->findOrFail($bookingId);
+
+        return view('booking.confirmation', compact('booking'));
+    }
+
+    public function getSeats($scheduleId)
+    {
+        return response()->json(Seat::where('schedule_id', $scheduleId)->orderBy('seat_number')->get());
     }
 }
