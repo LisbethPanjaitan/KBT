@@ -10,11 +10,13 @@ use Laravel\Socialite\Facades\Socialite;
 class GoogleAuthController extends Controller
 {
     /**
-     * Redirect to Google OAuth
+     * Redirect to Google for authentication
      */
     public function redirectToGoogle()
     {
-        return Socialite::driver('google')->redirect();
+        return Socialite::driver('google')
+            ->with(['prompt' => 'select_account'])
+            ->redirect();
     }
 
     /**
@@ -23,7 +25,10 @@ class GoogleAuthController extends Controller
     public function handleGoogleCallback()
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            // Configure Guzzle to work with localhost SSL
+            $googleUser = Socialite::driver('google')
+                ->setHttpClient(new \GuzzleHttp\Client(['verify' => false]))
+                ->user();
             
             \Log::info('Google User Data:', [
                 'id' => $googleUser->getId(),
@@ -56,14 +61,33 @@ class GoogleAuthController extends Controller
 
             // Login user
             Auth::login($user);
+            
+            \Log::info('User logged in successfully:', [
+                'user_id' => $user->id,
+                'role' => $user->role,
+                'email' => $user->email
+            ]);
 
             // Redirect based on role
             if ($user->role === 'admin') {
-                return redirect()->route('admin.dashboard')->with('success', 'Selamat datang, ' . $user->name);
+                return redirect()->route('admin.dashboard')
+                    ->with('success', 'Selamat datang kembali, ' . $user->name . '!');
             }
 
-            return redirect()->route('home')->with('success', 'Login berhasil! Selamat datang, ' . $user->name);
+            return redirect()->route('home')
+                ->with('success', 'Login berhasil! Selamat datang, ' . $user->name . '!');
 
+        } catch (\Laravel\Socialite\Two\InvalidStateException $e) {
+            \Log::error('Google OAuth State Error:', ['message' => $e->getMessage()]);
+            return redirect()->route('login')->with('error', 'Login dengan Google gagal: Sesi tidak valid. Silakan coba lagi.');
+            
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            \Log::error('Google OAuth Client Error:', [
+                'message' => $e->getMessage(),
+                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : 'No response'
+            ]);
+            return redirect()->route('login')->with('error', 'Google Client Error (401): Periksa Client ID/Secret atau tambahkan test user di Google Console.');
+            
         } catch (\Exception $e) {
             \Log::error('Google Login Error:', [
                 'message' => $e->getMessage(),
