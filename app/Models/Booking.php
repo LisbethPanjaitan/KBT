@@ -67,10 +67,12 @@ class Booking extends Model
     }
 
     /**
-     * FIX: Relasi ke tabel Payment harus didefinisikan agar eager loading bekerja.
+     * FIX: Relasi ke tabel Payment.
+     * Ini adalah kunci perbaikan untuk error RelationNotFoundException di image_bf03b4.png.
      */
     public function payment()
     {
+        // Menghubungkan Booking dengan satu data Payment (Struk Transfer)
         return $this->hasOne(Payment::class);
     }
 
@@ -92,17 +94,24 @@ class Booking extends Model
         parent::boot();
 
         static::creating(function ($booking) {
-            // Hanya buat kode otomatis jika tidak diisi manual (seperti oleh admin)
+            // Membuat kode booking otomatis jika kosong
             if (empty($booking->booking_code)) {
                 $booking->booking_code = 'KBT-' . strtoupper(Str::random(8));
             }
+            
+            // Membuat QR Code otomatis jika kosong
             if (empty($booking->qr_code)) {
-                $booking->qr_code = Str::uuid();
+                $booking->qr_code = (string) Str::uuid();
             }
         });
     }
 
-    // Helper methods untuk status pemesanan
+    /**
+     * ==========================================
+     * HELPERS (Mengecek Status)
+     * ==========================================
+     */
+
     public function isPending()
     {
         return $this->status === 'pending';
@@ -111,5 +120,10 @@ class Booking extends Model
     public function isConfirmed()
     {
         return $this->status === 'confirmed';
+    }
+
+    public function isCancelled()
+    {
+        return $this->status === 'cancelled';
     }
 }
