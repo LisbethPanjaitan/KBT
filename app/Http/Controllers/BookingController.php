@@ -212,7 +212,25 @@ class BookingController extends Controller
         
         return view('booking.checkout', compact('schedule', 'seats', 'addons'));
     }
+    // Tambahkan di App\Http\Controllers\BookingController.php
 
+public function updateStatus(Request $request, $id)
+{
+    $booking = Booking::findOrFail($id);
+    
+    $request->validate([
+        'status' => 'required|in:pending,confirmed,cancelled,refunded'
+    ]);
+
+    $booking->update(['status' => $request->status]);
+
+    // Jika admin mengonfirmasi, otomatis tandai payment sebagai 'paid'
+    if ($request->status == 'confirmed') {
+        $booking->payment()->update(['status' => 'paid']);
+    }
+
+    return back()->with('success', 'Status pemesanan ' . $booking->booking_code . ' berhasil diperbarui!');
+}
     /**
      * PROSES SIMPAN PEMESANAN (USER)
      * Menghubungkan pesanan user ke database agar muncul di Admin
@@ -296,6 +314,7 @@ class BookingController extends Controller
             DB::rollBack();
             return redirect()->back()->with('error', 'Gagal memproses pesanan: ' . $e->getMessage());
         }
+        
     }
 
     /**

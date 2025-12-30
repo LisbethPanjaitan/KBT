@@ -239,3 +239,12 @@ Route::prefix('bookings')->name('bookings.')->group(function () {
     // Password Reset
     Route::get('/password/request', function () { return view('admin.auth.forgot-password'); })->name('password.request');
 });
+
+// Sisi User
+Route::get('/ticket/{code}/payment', [TicketController::class, 'paymentForm'])->name('ticket.payment');
+Route::post('/ticket/{code}/payment', [TicketController::class, 'uploadPayment'])->name('ticket.payment.upload');
+
+// Sisi Admin (Kelola Pemesanan)
+Route::prefix('admin')->name('admin.')->group(function() {
+    Route::put('/bookings/{id}/status', [BookingController::class, 'updateStatus'])->name('bookings.updateStatus');
+});
