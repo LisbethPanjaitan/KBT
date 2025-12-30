@@ -1,251 +1,201 @@
 @extends('layouts.app')
 
-@section('title', 'Detail E-Ticket - KBT')
+@section('title', 'Detail Pesanan - ' . $booking->booking_code)
 
 @section('content')
-<div class="bg-gray-50 min-h-screen py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="bg-gray-50 min-h-screen py-12">
+    <div class="max-w-4xl mx-auto px-4">
         
-        <!-- Status Badge -->
-        <div class="mb-6 text-center">
-            @php
-                $statusColors = [
-                    'pending' => 'bg-yellow-100 text-yellow-800',
-                    'paid' => 'bg-green-100 text-green-800',
-                    'confirmed' => 'bg-blue-100 text-blue-800',
-                    'cancelled' => 'bg-red-100 text-red-800',
-                ];
-                $statusLabels = [
-                    'pending' => 'Menunggu Pembayaran',
-                    'paid' => 'Sudah Dibayar',
-                    'confirmed' => 'Dikonfirmasi',
-                    'cancelled' => 'Dibatalkan',
-                ];
-            @endphp
-            <span class="inline-block px-6 py-2 rounded-full text-lg font-semibold {{ $statusColors[$booking->status] ?? 'bg-gray-100 text-gray-800' }}">
-                {{ $statusLabels[$booking->status] ?? ucfirst($booking->status) }}
-            </span>
+        <div class="mb-8 flex items-center justify-between print:hidden">
+            <a href="{{ route('ticket.check') }}" class="text-blue-600 font-bold flex items-center hover:text-blue-800 transition">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali ke Pencarian
+            </a>
+            <button onclick="window.print()" class="bg-white text-gray-700 font-bold px-5 py-2 rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 transition flex items-center">
+                <i class="fas fa-print mr-2 text-blue-500"></i> Cetak E-Tiket
+            </button>
         </div>
 
-        <!-- E-Ticket -->
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h1 class="text-3xl font-bold mb-2">E-Ticket</h1>
-                        <p class="text-blue-100">Kode Booking: <span class="font-mono font-bold">{{ $booking->booking_code }}</span></p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm text-blue-100">Tanggal Booking</p>
-                        <p class="font-semibold">{{ $booking->created_at->format('d M Y, H:i') }}</p>
-                    </div>
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 print:shadow-none print:border-none">
+            
+            <div class="bg-blue-600 p-8 text-white flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                <div>
+                    <h1 class="text-2xl font-black uppercase tracking-tighter italic">E-Tiket Bus KBT</h1>
+                    <p class="opacity-80 text-sm mt-1">Kode Booking: <span class="font-mono font-bold bg-white/20 px-2 py-0.5 rounded">{{ $booking->booking_code }}</span></p>
+                </div>
+                <div class="flex flex-col items-center md:items-end">
+                    <p class="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Status Keamanan</p>
+                    <span class="px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest shadow-lg {{ $booking->status == 'confirmed' ? 'bg-green-400 text-green-900' : 'bg-orange-400 text-orange-900 animate-pulse' }}">
+                        {{ strtoupper($booking->status) }}
+                    </span>
                 </div>
             </div>
 
-            <!-- Trip Details -->
-            <div class="p-8 border-b">
-                <h2 class="text-2xl font-bold mb-6">Detail Perjalanan</h2>
+            <div class="p-8 space-y-10">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <p class="text-sm text-gray-500 mb-1">Tanggal Keberangkatan</p>
-                        <p class="text-xl font-bold">{{ \Carbon\Carbon::parse($booking->schedule->departure_date)->format('d F Y') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500 mb-1">Waktu Keberangkatan</p>
-                        <p class="text-xl font-bold">{{ \Carbon\Carbon::parse($booking->schedule->departure_time)->format('H:i') }} WIB</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex-1">
-                        <p class="text-sm text-gray-500">Dari</p>
-                        <p class="text-2xl font-bold text-blue-600">{{ $booking->schedule->route->origin_city }}</p>
-                        <p class="text-sm text-gray-600">{{ $booking->schedule->route->origin_terminal }}</p>
-                    </div>
-                    <div class="flex-shrink-0 mx-4">
-                        <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                        </svg>
-                    </div>
-                    <div class="flex-1 text-right">
-                        <p class="text-sm text-gray-500">Ke</p>
-                        <p class="text-2xl font-bold text-blue-600">{{ $booking->schedule->route->destination_city }}</p>
-                        <p class="text-sm text-gray-600">{{ $booking->schedule->route->destination_terminal }}</p>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                            <p class="text-sm text-gray-500">Bus</p>
-                            <p class="font-semibold">{{ $booking->schedule->bus->bus_type }}</p>
+                <div>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Informasi Perjalanan</h3>
+                    <div class="bg-blue-50 rounded-2xl p-6 border border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                        <div class="text-center md:text-left">
+                            <p class="text-[10px] font-black text-blue-400 uppercase mb-1">Asal</p>
+                            <p class="text-xl font-black text-blue-900">{{ $booking->schedule->route->origin_city }}</p>
+                            <p class="text-xs text-blue-700 font-bold">{{ $booking->schedule->route->origin_terminal }}</p>
                         </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Nomor Polisi</p>
-                            <p class="font-semibold">{{ $booking->schedule->bus->plate_number }}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Kapasitas</p>
-                            <p class="font-semibold">{{ $booking->schedule->bus->capacity }} kursi</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Durasi</p>
-                            <p class="font-semibold">{{ $booking->schedule->route->duration }} jam</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Passengers -->
-            <div class="p-8 border-b">
-                <h2 class="text-2xl font-bold mb-6">Data Penumpang</h2>
-                
-                @foreach($booking->passengers as $passenger)
-                <div class="bg-gray-50 rounded-lg p-4 mb-4">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <p class="font-bold text-lg mb-2">{{ $passenger->name }}</p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                <p class="text-gray-600">
-                                    <span class="font-medium">No. Identitas:</span> {{ $passenger->id_number }}
-                                </p>
-                                <p class="text-gray-600">
-                                    <span class="font-medium">No. Telepon:</span> {{ $passenger->phone }}
-                                </p>
-                                @if($passenger->email)
-                                <p class="text-gray-600">
-                                    <span class="font-medium">Email:</span> {{ $passenger->email }}
-                                </p>
-                                @endif
+                        <div class="flex flex-col items-center justify-center">
+                            <div class="w-full flex items-center">
+                                <div class="flex-1 h-0.5 bg-blue-200 border-t border-dashed"></div>
+                                <i class="fas fa-bus text-blue-600 mx-3 text-xl"></i>
+                                <div class="flex-1 h-0.5 bg-blue-200 border-t border-dashed"></div>
                             </div>
-                        </div>
-                        <div class="text-right ml-4">
-                            <p class="text-sm text-gray-500">Kursi</p>
-                            @php
-                                $passengerSeat = $booking->seats->where('id', $passenger->seat_id)->first();
-                            @endphp
-                            <p class="text-2xl font-bold text-blue-600">{{ $passengerSeat->seat_number ?? '-' }}</p>
-                        </div>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-
-            <!-- Payment Info -->
-            <div class="p-8 border-b">
-                <h2 class="text-2xl font-bold mb-6">Informasi Pembayaran</h2>
-                
-                <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Harga Tiket ({{ $booking->seats->count() }} kursi)</span>
-                        <span class="font-semibold">Rp {{ number_format($booking->total_price, 0, ',', '.') }}</span>
-                    </div>
-                    @if($booking->addons->count() > 0)
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Tambahan</span>
-                        <span class="font-semibold">
-                            Rp {{ number_format($booking->addons->sum('price'), 0, ',', '.') }}
-                        </span>
-                    </div>
-                    @endif
-                    <div class="border-t pt-3 flex justify-between text-xl font-bold text-blue-600">
-                        <span>Total Pembayaran</span>
-                        <span>Rp {{ number_format($booking->total_price, 0, ',', '.') }}</span>
-                    </div>
-                </div>
-
-                @if($booking->payment)
-                <div class="mt-4 bg-gray-50 rounded-lg p-4">
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p class="text-gray-500">Metode Pembayaran</p>
-                            <p class="font-semibold">{{ ucwords(str_replace('_', ' ', $booking->payment->payment_method)) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-gray-500">Status Pembayaran</p>
-                            <p class="font-semibold {{ $booking->payment->status === 'paid' ? 'text-green-600' : 'text-yellow-600' }}">
-                                {{ ucfirst($booking->payment->status) }}
+                            <p class="text-[10px] font-black text-blue-400 mt-2 uppercase">
+                                {{ \Carbon\Carbon::parse($booking->schedule->departure_date)->translatedFormat('d F Y') }}
+                            </p>
+                            <p class="text-lg font-black text-blue-600">
+                                {{ \Carbon\Carbon::parse($booking->schedule->departure_time)->format('H:i') }} WIB
                             </p>
                         </div>
-                    </div>
-                </div>
-                @endif
-            </div>
-
-            <!-- QR Code -->
-            <div class="p-8 bg-gray-50">
-                <div class="text-center">
-                    <h3 class="text-xl font-bold mb-4">QR Code Check-in</h3>
-                    <div class="inline-block bg-white p-6 rounded-lg shadow">
-                        <div class="w-48 h-48 bg-gray-200 flex items-center justify-center">
-                            <!-- QR Code will be generated here -->
-                            <svg class="h-full w-full" viewBox="0 0 100 100">
-                                <rect width="100" height="100" fill="white"/>
-                                <text x="50" y="50" text-anchor="middle" font-size="8" fill="#666">
-                                    QR Code: {{ $booking->booking_code }}
-                                </text>
-                            </svg>
+                        <div class="text-center md:text-right">
+                            <p class="text-[10px] font-black text-blue-400 uppercase mb-1">Tujuan</p>
+                            <p class="text-xl font-black text-blue-900">{{ $booking->schedule->route->destination_city }}</p>
+                            <p class="text-xs text-blue-700 font-bold">{{ $booking->schedule->route->destination_terminal }}</p>
                         </div>
                     </div>
-                    <p class="text-sm text-gray-600 mt-4">Tunjukkan QR code ini saat check-in</p>
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="p-8 bg-white">
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <a href="{{ route('ticket.download', $booking->id) }}" 
-                       class="flex-1 btn-primary text-center">
-                        <i class="bi bi-download"></i> Download E-Ticket PDF
-                    </a>
-                    <button onclick="window.print()" 
-                            class="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition">
-                        <i class="bi bi-printer"></i> Print Tiket
-                    </button>
                 </div>
 
-                @if($booking->status === 'pending')
-                <div class="mt-4">
-                    <a href="{{ route('payment.process') }}" 
-                       class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-medium text-center hover:bg-green-700 transition">
-                        <i class="bi bi-credit-card"></i> Bayar Sekarang
-                    </a>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div>
+                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Manifest Penumpang</h3>
+                        <div class="space-y-3">
+                            @foreach($booking->passengers as $index => $passenger)
+                            <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl bg-gray-50 transition hover:bg-white hover:shadow-md">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-black mr-3 shadow-sm">
+                                        {{ $loop->iteration }}
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-gray-900 leading-none text-sm">{{ $passenger->full_name }}</p>
+                                        <p class="text-[10px] text-gray-500 font-bold mt-1 uppercase">{{ $passenger->phone_number }}</p>
+                                    </div>
+                                </div>
+                                <div class="bg-blue-100 text-blue-700 font-black px-3 py-1 rounded-lg text-[10px] uppercase">
+                                    Kursi {{ $booking->seats[$index]->seat_number ?? '-' }}
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Ringkasan Biaya</h3>
+                        <div class="p-6 border border-gray-100 rounded-3xl space-y-4 bg-white">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-400 font-bold uppercase text-[10px]">Harga Tiket ({{ $booking->total_seats }}x)</span>
+                                <span class="font-bold text-gray-900">Rp {{ number_format($booking->subtotal, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm border-b border-gray-50 pb-4">
+                                <span class="text-gray-400 font-bold uppercase text-[10px]">Layanan Armada</span>
+                                <span class="font-bold text-green-600 text-xs uppercase italic">Included</span>
+                            </div>
+                            <div class="flex justify-between items-end pt-2">
+                                <div>
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Bayar</p>
+                                    <p class="text-3xl font-black text-blue-600 tracking-tighter">Rp {{ number_format($booking->total_amount, 0, ',', '.') }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Metode</p>
+                                    <p class="font-black text-gray-700 uppercase text-[10px]">{{ str_replace('_', ' ', $booking->payment_method) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if($booking->status == 'pending')
+                <div class="mt-8 pt-8 border-t-2 border-dashed border-gray-100">
+                    <div class="bg-gray-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl">
+                        <div class="relative z-10">
+                            <div class="flex items-center mb-4">
+                                <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center mr-3">
+                                    <i class="fas fa-wallet text-blue-400"></i>
+                                </div>
+                                <h4 class="text-xl font-black uppercase italic">Selesaikan Pembayaran</h4>
+                            </div>
+                            <p class="text-gray-400 text-xs leading-relaxed mb-6 max-w-lg">
+                                Tiket Anda belum aktif. Silakan transfer tepat <span class="text-white font-bold">Rp {{ number_format($booking->total_amount, 0, ',', '.') }}</span> ke rekening di bawah ini untuk aktivasi otomatis.
+                            </p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition">
+                                    <p class="text-[10px] font-black text-blue-400 uppercase mb-1">Bank Mandiri (Pusat)</p>
+                                    <p class="text-xl font-mono font-bold tracking-widest text-white">123-456-7890</p>
+                                    <p class="text-[10px] text-gray-500 font-bold uppercase mt-1">A.N PT KBT SEJAHTERA</p>
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition">
+                                    <p class="text-[10px] font-black text-blue-400 uppercase mb-1">Bank BCA (Pusat)</p>
+                                    <p class="text-xl font-mono font-bold tracking-widest text-white">098-765-4321</p>
+                                    <p class="text-[10px] text-gray-500 font-bold uppercase mt-1">A.N PT KBT SEJAHTERA</p>
+                                </div>
+                            </div>
+                            <div class="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-white/5 pt-6">
+                                <p class="text-[10px] font-bold italic text-orange-400">
+                                    <i class="fas fa-info-circle mr-1"></i> Setelah transfer, kirimkan bukti bayar melalui link WhatsApp di samping.
+                                </p>
+                                <a href="https://wa.me/6281234567890?text=Halo%20Admin%20KBT,%20saya%20ingin%20konfirmasi%20pembayaran%20dengan%20Kode%20Booking:%20{{ $booking->booking_code }}" target="_blank" class="bg-green-500 hover:bg-green-600 text-white font-black px-8 py-4 rounded-2xl shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center text-sm">
+                                    <i class="fab fa-whatsapp mr-2 text-lg"></i> KONFIRMASI PEMBAYARAN
+                                </a>
+                            </div>
+                        </div>
+                        <i class="fas fa-shield-alt absolute -right-10 -bottom-10 opacity-5 text-9xl transform -rotate-12"></i>
+                    </div>
+                </div>
+                @else
+                <div class="mt-8 pt-8 border-t border-gray-100 flex flex-col items-center justify-center text-center">
+                    <div class="bg-green-50 p-8 rounded-3xl border border-green-100 max-w-xl">
+                        <div class="w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-200">
+                            <i class="fas fa-check text-2xl"></i>
+                        </div>
+                        <h4 class="text-xl font-black text-green-900 uppercase italic">Tiket Siap Digunakan</h4>
+                        <p class="text-sm text-green-700 font-medium mt-2 leading-relaxed">
+                            Pembayaran Anda telah diverifikasi oleh sistem. Tunjukkan halaman ini atau QR-Code di bawah kepada petugas saat naik ke armada.
+                        </p>
+                    </div>
                 </div>
                 @endif
+
+                <div class="pt-8 flex flex-col items-center justify-center space-y-4">
+                    <div class="text-center">
+                         <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] mb-4">Boarding Pass QR-Code</p>
+                         <div class="p-5 bg-white border-2 border-gray-100 rounded-3xl shadow-inner inline-block">
+                             {!! QrCode::size(160)->margin(1)->generate($booking->booking_code) !!}
+                         </div>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase italic max-w-xs">
+                            KBT Transportasi &copy; 2025<br>
+                            Simpan QR-Code ini untuk keperluan Check-in di Terminal.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <!-- Important Notes -->
-        <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-            <h3 class="font-bold text-yellow-800 mb-2">Informasi Penting:</h3>
-            <ul class="text-sm text-yellow-700 space-y-1 list-disc list-inside">
-                <li>Harap datang minimal 15 menit sebelum jadwal keberangkatan</li>
-                <li>Bawa dokumen identitas asli (KTP/SIM) sesuai dengan data pemesanan</li>
-                <li>E-ticket ini berlaku untuk satu kali perjalanan</li>
-                <li>Simpan e-ticket ini sampai perjalanan selesai</li>
-            </ul>
-        </div>
-
-        <div class="mt-6 text-center">
-            <a href="{{ route('ticket.check') }}" class="text-blue-600 hover:text-blue-700 font-medium">
-                ← Kembali ke Cek Pesanan
-            </a>
+        
+        <div class="hidden print:block mt-12 text-center border-t border-gray-200 pt-8">
+            <p class="text-sm font-bold text-gray-500 uppercase tracking-widest">Terima Kasih Telah Menggunakan Jasa KBT</p>
+            <p class="text-[10px] text-gray-400 mt-1 italic italic">Tiket ini sah dan diterbitkan secara elektronik melalui kbt-transport.id</p>
         </div>
     </div>
 </div>
 
-@push('styles')
 <style>
-@media print {
-    nav, footer, .no-print {
-        display: none !important;
+    @media print {
+        body { background: white !important; }
+        .bg-gray-50 { background: white !important; }
+        nav, footer, .print\:hidden { display: none !important; }
+        .max-w-4xl { max-width: 100% !important; width: 100% !important; margin: 0 !important; }
+        .shadow-xl { box-shadow: none !important; }
+        .rounded-3xl { border-radius: 0.5rem !important; }
+        .bg-blue-600 { background-color: #2563eb !important; -webkit-print-color-adjust: exact; }
+        .bg-blue-50 { background-color: #eff6ff !important; -webkit-print-color-adjust: exact; }
+        .bg-gray-900 { background-color: #111827 !important; -webkit-print-color-adjust: exact; color: white !important; }
+        .text-white { color: white !important; }
     }
-    body {
-        background: white;
-    }
-}
 </style>
-@endpush
 @endsection

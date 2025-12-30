@@ -4,62 +4,103 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Booking;
+use Carbon\Carbon;
 
 class TicketController extends Controller
 {
+    /**
+     * Menampilkan halaman form cek pesanan.
+     */
     public function check()
     {
         return view('ticket.check');
     }
     
+    /**
+     * PROSES PENCARIAN TIKET
+     * Mendukung kode booking KBT- (Online) dan LK- (Loket/Admin).
+     */
     public function search(Request $request)
     {
         $request->validate([
             'booking_code' => 'required|string',
-            'email' => 'required|email'
+            'phone_number' => 'required|string'
         ]);
+
+        // Bersihkan input dan paksa menjadi huruf besar (upper case)
+        $code = strtoupper(trim($request->booking_code));
+        $phone = trim($request->phone_number);
         
-        $booking = Booking::where('booking_code', $request->booking_code)
-            ->whereHas('passengers', function($q) use ($request) {
-                $q->where('email', $request->email);
+        // Cari booking berdasarkan kode DAN nomor HP salah satu penumpang
+        $booking = Booking::where('booking_code', $code)
+            ->whereHas('passengers', function($q) use ($phone) {
+                $q->where('phone_number', 'like', "%{$phone}%");
             })
-            ->with(['schedule.bus', 'schedule.route', 'seats', 'passengers', 'payment'])
             ->first();
         
         if (!$booking) {
             return redirect()->back()
-                ->with('error', 'Pesanan tidak ditemukan. Periksa kembali kode booking dan email Anda.');
+                ->withInput()
+                ->with('error', 'Pesanan tidak ditemukan. Periksa kembali kode booking (KBT-/LK-) dan nomor HP Anda.');
         }
         
-        return view('ticket.show', compact('booking'));
+        // Arahkan ke halaman detail tiket menggunakan kode booking di URL
+        return redirect()->route('ticket.show', $booking->booking_code);
     }
     
-    public function show($bookingId)
+    /**
+     * TAMPILAN DETAIL TIKET
+     * Menggunakan kode booking untuk mencari data secara utuh.
+     */
+    public function show($bookingCode)
     {
-        $booking = Booking::with(['schedule.bus', 'schedule.route', 'seats', 'passengers', 'payment'])
-            ->findOrFail($bookingId);
+        // Mencari berdasarkan string booking_code, bukan ID
+        $booking = Booking::where('booking_code', strtoupper($bookingCode))
+            ->with(['schedule.bus', 'schedule.route', 'seats', 'passengers', 'payment'])
+            ->firstOrFail();
         
         return view('ticket.show', compact('booking'));
     }
     
+    /**
+     * Fitur download tiket dalam format PDF.
+     */
     public function download($bookingId)
     {
         $booking = Booking::with(['schedule.bus', 'schedule.route', 'seats', 'passengers'])
             ->findOrFail($bookingId);
         
-        // TODO: Generate PDF ticket
+        // Jika nanti menggunakan DomPDF:
+        // $pdf = Pdf::loadView('pdf.ticket', compact('booking'));
+        // return $pdf->download('tiket-'.$booking->booking_code.'.pdf');
+
         return redirect()->back()
-            ->with('info', 'Fitur download PDF akan segera tersedia.');
+            ->with('info', 'Fitur download PDF sedang disiapkan.');
     }
     
+    /**
+     * Proses Check-in penumpang (Update Status di Database)
+     */
     public function checkin(Request $request, $bookingId)
     {
         $booking = Booking::findOrFail($bookingId);
         
-        // TODO: Implement QR code scanning and check-in
+        // Logika: Hanya bisa check-in jika status sudah 'confirmed' (sudah bayar)
+        if ($booking->status !== 'confirmed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal: Pembayaran belum dikonfirmasi.'
+            ], 400);
+        }
+
+        // Update waktu check-in
+        $booking->update([
+            'checked_in_at' => now(),
+        ]);
+        
         return response()->json([
             'success' => true,
-            'message' => 'Check-in berhasil'
+            'message' => 'Check-in berhasil! Penumpang dipersilakan naik ke armada.'
         ]);
     }
 }
